@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple GUI Calculator</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --calc-bg: #16213e;
+            --display-bg: #0f0f1a;
+            --btn-number: #1f3460;
+            --btn-number-hover: #2a4578;
+            --btn-operator: #e67e22;
+            --btn-operator-hover: #f0933b;
+            --btn-clear: #c0392b;
+            --btn-clear-hover: #e74c3c;
+            --btn-equals: #27ae60;
+            --btn-equals-hover: #2ecc71;
+            --btn-special: #8e44ad;
+            --btn-special-hover: #a569bd;
+            --text-primary: #ecf0f1;
+            --text-display: #00ffc8;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            --btn-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Subtle animated background circles */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -150px;
+            right: -150px;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(231, 126, 34, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: floatBg1 12s ease-in-out infinite;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -120px;
+            left: -120px;
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(39, 174, 96, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: floatBg2 14s ease-in-out infinite;
+        }
+
+        @keyframes floatBg1 {
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+            33% {
+                transform: translate(-40px, 30px) scale(1.1);
+            }
+            66% {
+                transform: translate(20px, -25px) scale(0.9);
+            }
+        }
+
+        @keyframes floatBg2 {
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+            50% {
+                transform: translate(30px, -35px) scale(1.15);
+            }
+        }
+
+        .calculator-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        .calculator {
+            background: var(--calc-bg);
+            border-radius: 24px;
+            padding: 28px 22px 22px;
+            box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            width: 380px;
+            max-width: 95vw;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* ---- Display ---- */
+        .display-container {
+            background: var(--display-bg);
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03);
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-end;
+            overflow: hidden;
+        }
+
+        .expression {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            word-break: break-all;
+            text-align: right;
+            width: 100%;
+            min-height: 22px;
+            transition: color 0.3s;
+            font-weight: 400;
+        }
+
+        .result {
+            color: var(--text-display);
+            font-size: 2.6rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            word-break: break-all;
+            text-align: right;
+            width: 100%;
+            line-height: 1.2;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 20px rgba(0, 255, 200, 0.3);
+        }
+
+        .result.error {
+            color: #e74c3c;
+            font-size: 1.3rem;
+            text-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .result.computing {
+            color: #f39c12;
+            text-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+        }
+
+        /* ---- Button Grid ---- */
+        .buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            padding: 18px 10px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: var(--btn-shadow);
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            color: var(--text-primary);
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Ripple effect */
+        button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s, opacity 0.6s;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        button:active::after {
+            width: 300px;
+            height: 300px;
+            opacity: 0;
+            transition: 0s;
+        }
+
+        button:active {
+            transform: scale(0.94);
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Number buttons */
+        .btn-number {
+            background: var(--btn-number);
+        }
+        .btn-number:hover {
+            background: var(--btn-number-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.4);
+        }
+        .btn-number:active {
+            transform: scale(0.94) translateY(0);
+        }
+
+        /* Operator buttons */
+        .btn-operator {
+            background: var(--btn-operator);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .btn-operator:hover {
+            background: var(--btn-operator-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(230, 126, 34, 0.4);
+        }
+        .btn-operator:active {
+            transform: scale(0.94) translateY(0);
+        }
+        .btn-operator.active-operator {
+            background: #f0a04b;
+            box-shadow: 0 0 16px rgba(240, 160, 75, 0.6);
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 12px rgba(240, 160, 75, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 24px rgba(240, 160, 75, 0.9);
+            }
+        }
+
+        /* Clear button */
+        .btn-clear {
+            background: var(--btn-clear);
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-size: 1.1rem;
+        }
+        .btn-clear:hover {
+            background: var(--btn-clear-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(192, 57, 43, 0.5);
+        }
+        .btn-clear:active {
+            transform: scale(0.94) translateY(0);
+        }
+
+        /* Equals button */
+        .btn-equals {
+            background: var(--btn-equals);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        .btn-equals:hover {
+            background: var(--btn-equals-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(39, 174, 96, 0.5);
+        }
+        .btn-equals:active {
+            transform: scale(0.94) translateY(0);
+        }
+
+        /* Special buttons (%, ^) */
+        .btn-special {
+            background: var(--btn-special);
+            font-weight: 600;
+        }
+        .btn-special:hover {
+            background: var(--btn-special-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(142, 68, 173, 0.5);
+        }
+        .btn-special:active {
+            transform: scale(0.94) translateY(0);
+        }
+
+        /* Decimal button */
+        .btn-decimal {
+            background: var(--btn-number);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        .btn-decimal:hover {
+            background: var(--btn-number-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Zero button spans 2 columns on wider screens */
+        .btn-zero {
+            grid-column: span 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 420px) {
+            .calculator {
+                width: 340px;
+                padding: 20px 14px 16px;
+                border-radius: 20px;
+                gap: 12px;
+            }
+            .buttons-grid {
+                gap: 8px;
+            }
+            button {
+                padding: 14px 6px;
+                font-size: 1.1rem;
+                border-radius: 10px;
+            }
+            .result {
+                font-size: 2.2rem;
+            }
+            .display-container {
+                padding: 12px 16px;
+                min-height: 72px;
+                border-radius: 12px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .calculator {
+                width: 300px;
+                padding: 16px 10px 12px;
+                gap: 10px;
+                border-radius: 16px;
+            }
+            .buttons-grid {
+                gap: 6px;
+            }
+            button {
+                padding: 12px 4px;
+                font-size: 1rem;
+                border-radius: 8px;
+            }
+            .result {
+                font-size: 1.8rem;
+            }
+            .btn-operator {
+                font-size: 1.2rem;
+            }
+            .btn-equals {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator-wrapper">
+        <div class="calculator">
+            <!-- Display Area -->
+            <div class="display-container">
+                <div class="expression" id="expression"></div>
+                <div class="result" id="result">0</div>
+            </div>
+
+            <!-- Buttons Grid -->
+            <div class="buttons-grid">
+                <!-- Row 1: Clear, Power, Modulo, Divide -->
+                <button class="btn-clear" id="btnClear" title="Clear (C)">C</button>
+                <button class="btn-special" id="btnPower" title="Power (^)">^</button>
+                <button class="btn-special" id="btnModulo" title="Modulo (%)">%</button>
+                <button class="btn-operator" id="btnDivide" title="Divide (/)">/</button>
+
+                <!-- Row 2: 7, 8, 9, Multiply -->
+                <button class="btn-number" id="btn7">7</button>
+                <button class="btn-number" id="btn8">8</button>
+                <button class="btn-number" id="btn9">9</button>
+                <button class="btn-operator" id="btnMultiply" title="Multiply (*)">*</button>
+
+                <!-- Row 3: 4, 5, 6, Subtract -->
+                <button class="btn-number" id="btn4">4</button>
+                <button class="btn-number" id="btn5">5</button>
+                <button class="btn-number" id="btn6">6</button>
+                <button class="btn-operator" id="btnSubtract" title="Subtract (-)">-</button>
+
+                <!-- Row 4: 1, 2, 3, Add -->
+                <button class="btn-number" id="btn1">1</button>
+                <button class="btn-number" id="btn2">2</button>
+                <button class="btn-number" id="btn3">3</button>
+                <button class="btn-operator" id="btnAdd" title="Add (+)">+</button>
+
+                <!-- Row 5: 0, Decimal, Equals -->
+                <button class="btn-number btn-zero" id="btn0">0</button>
+                <button class="btn-decimal" id="btnDecimal" title="Decimal Point">.</button>
+                <button class="btn-equals" id="btnEquals" title="Equals (=)">=</button>
+                <!-- Empty slot filled by nothing, or we can extend equals -->
+                <button class="btn-operator" id="btnExtra" style="visibility: hidden; pointer-events: none;"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ---- DOM Elements ----
+            const expressionEl = document.getElementById('expression');
+            const resultEl = document.getElementById('result');
+
+            // ---- State ----
+            let currentInput = '0'; // The number currently being typed
+            let previousInput = ''; // The previous number (before operator)
+            let operator = null; // The pending operator symbol
+            let shouldResetDisplay = false; // If true, next digit replaces currentInput
+            let lastResult = null; // Store last computed result for chaining
+            let expressionString = ''; // Full expression for display
+            let justPressedEquals = false; // Track if = was just pressed
+
+            // ---- Helper Functions ----
+            function updateDisplay() {
+                // Update the result line
+                resultEl.textContent = currentInput;
+                resultEl.classList.remove('error', 'computing');
+
+                // Update the expression line
+                if (expressionString) {
+                    expressionEl.textContent = expressionString;
+                } else {
+                    expressionEl.textContent = '';
+                }
+
+                // Adjust font size for long numbers
+                const len = currentInput.length;
+                if (len > 15) {
+                    resultEl.style.fontSize = '1.4rem';
+                } else if (len > 11) {
+                    resultEl.style.fontSize = '1.8rem';
+                } else if (len > 8) {
+                    resultEl.style.fontSize = '2.2rem';
+                } else {
+                    resultEl.style.fontSize = '2.6rem';
+                }
+            }
+
+            function resetFontSize() {
+                resultEl.style.fontSize = '2.6rem';
+            }
+
+            function clearAll() {
+                currentInput = '0';
+                previousInput = '';
+                operator = null;
+                shouldResetDisplay = false;
+                lastResult = null;
+                expressionString = '';
+                justPressedEquals = false;
+                resetFontSize();
+                removeActiveOperatorClass();
+                updateDisplay();
+            }
+
+            function removeActiveOperatorClass() {
+                document.querySelectorAll('.btn-operator').forEach(btn => {
+                    btn.classList.remove('active-operator');
+                });
+            }
+
+            function setActiveOperator(opSymbol) {
+                removeActiveOperatorClass();
+                const operatorMap = {
+                    '+': 'btnAdd',
+                    '-': 'btnSubtract',
+                    '*': 'btnMultiply',
+                    '/': 'btnDivide',
+                    '^': 'btnPower',
+                    '%': 'btnModulo',
+                };
+                const btnId = operatorMap[opSymbol];
+                if (btnId) {
+                    const btn = document.getElementById(btnId);
+                    if (btn) btn.classList.add('active-operator');
+                }
+            }
+
+            function formatNumber(num) {
+                // Handle very large or very small numbers
+                if (num === Infinity || num === -Infinity) return 'Infinity';
+                if (isNaN(num)) return 'Error';
+
+                // If it's an integer within safe range, return as is
+                if (Number.isInteger(num) && Math.abs(num) < 1e15) {
+                    return num.toString();
+                }
+
+                // For floating point, limit to 12 significant digits
+                const str = parseFloat(num.toPrecision(12)).toString();
+
+                // If still too long, use exponential notation
+                if (str.length > 15) {
+                    return parseFloat(num.toPrecision(8)).toString();
+                }
+                return str;
+            }
+
+            function computeResult(a, op, b) {
+                const numA = parseFloat(a);
+                const numB = parseFloat(b);
+
+                if (isNaN(numA) || isNaN(numB)) return null;
+
+                let result;
+                switch (op) {
+                    case '+':
+                        result = numA + numB;
+                        break;
+                    case '-':
+                        result = numA - numB;
+                        break;
+                    case '*':
+                        result = numA * numB;
+                        break;
+                    case '/':
+                        if (numB === 0) return 'Error: /0';
+                        result = numA / numB;
+                        break;
+                    case '^':
+                        // Handle edge cases for power
+                        if (numA === 0 && numB < 0) return 'Error';
+                        result = Math.pow(numA, numB);
+                        break;
+                    case '%':
+                        if (numB === 0) return 'Error: /0';
+                        result = numA % numB;
+                        break;
+                    default:
+                        return null;
+                }
+
+                if (!isFinite(result)) return 'Error';
+                return result;
+            }
+
+            // ---- Event Handlers ----
+            function handleNumber(numStr) {
+                if (justPressedEquals) {
+                    // After pressing =, starting a new number resets everything
+                    clearAll();
+                    justPressedEquals = false;
+                    currentInput = numStr;
+                    shouldResetDisplay = false;
+                    updateDisplay();
+                    return;
+                }
+
+                if (shouldResetDisplay) {
+                    currentInput = numStr;
+                    shouldResetDisplay = false;
+                } else {
+                    if (currentInput === '0' && numStr !== '.') {
+                        currentInput = numStr;
+                    } else if (currentInput === '-0' && numStr !== '.') {
+                        currentInput = '-' + numStr;
+                    } else {
+                        // Prevent overly long input
+                        if (currentInput.replace(/[^0-9]/g, '').length >= 15) return;
+                        currentInput += numStr;
+                    }
+                }
+                // Update expression
+                if (operator && previousInput !== '') {
+                    expressionString = previousInput + ' ' + operator + ' ' + currentInput;
+                } else {
+                    expressionString = currentInput;
+                }
+                updateDisplay();
+            }
+
+            function handleDecimal() {
+                if (justPressedEquals) {
+                    clearAll();
+                    justPressedEquals = false;
+                    currentInput = '0.';
+                    shouldResetDisplay = false;
+                    expressionString = currentInput;
+                    updateDisplay();
+                    return;
+                }
+
+                if (shouldResetDisplay) {
+                    currentInput = '0.';
+                    shouldResetDisplay = false;
+                    expressionString = (operator && previousInput !== '') ?
+                        previousInput + ' ' + operator + ' ' + currentInput :
+                        currentInput;
+                    updateDisplay();
+                    return;
+                }
+
+                // Only add decimal if not already present
+                if (!currentInput.includes('.')) {
+                    currentInput += '.';
+                    if (operator && previousInput !== '') {
+                        expressionString = previousInput + ' ' + operator + ' ' + currentInput;
+                    } else {
+                        expressionString = currentInput;
+                    }
+                    updateDisplay();
+                }
+            }
+
+            function handleOperator(opSymbol) {
+                justPressedEquals = false;
+                removeActiveOperatorClass();
+
+                // If there's a pending operation and user hasn't reset display, compute first
+                if (operator && !shouldResetDisplay && previousInput !== '') {
+                    const result = computeResult(previousInput, operator, currentInput);
+                    if (result !== null && typeof result === 'number') {
+                        const formatted = formatNumber(result);
+                        previousInput = formatted;
+                        currentInput = formatted;
+                        expressionString = formatted + ' ' + opSymbol;
+                        resultEl.textContent = formatted;
+                        expressionEl.textContent = expressionString;
+                    } else if (result !== null && typeof result === 'string') {
+                        // Error
+                        currentInput = result;
+                        previousInput = '';
+                        operator = null;
+                        shouldResetDisplay = true;
+                        expressionString = '';
+                        resultEl.textContent = result;
+                        resultEl.classList.add('error');
+                        expressionEl.textContent = '';
+                        updateDisplay();
+                        return;
+                    }
+                } else {
+                    // No pending operation
+                    previousInput = currentInput;
+                    expressionString = currentInput + ' ' + opSymbol;
+                    expressionEl.textContent = expressionString;
+                }
+
+                operator = opSymbol;
+                shouldResetDisplay = true;
+                setActiveOperator(opSymbol);
+                lastResult = null;
+                updateDisplay();
+            }
+
+            function handleEquals() {
+                removeActiveOperatorClass();
+
+                if (justPressedEquals && lastResult !== null && operator) {
+                    // Repeat last operation: lastResult op currentInput
+                    const result = computeResult(lastResult, operator, parseFloat(currentInput));
+                    if (result !== null && typeof result === 'number') {
+                        const formatted = formatNumber(result);
+                        expressionString = lastResult + ' ' + operator + ' ' + currentInput + ' =';
+                        currentInput = formatted;
+                        previousInput = formatted;
+                        lastResult = formatted;
+                        expressionEl.textContent = expressionString;
+                        resultEl.textContent = formatted;
+                        shouldResetDisplay = true;
+                        justPressedEquals = true;
+                        updateDisplay();
+                        return;
+                    } else if (result !== null && typeof result === 'string') {
+                        currentInput = result;
+                        expressionString = '';
+                        resultEl.textContent = result;
+                        resultEl.classList.add('error');
+                        expressionEl.textContent = '';
+                        previousInput = '';
+                        operator = null;
+                        shouldResetDisplay = true;
+                        lastResult = null;
+                        justPressedEquals = false;
+                        updateDisplay();
+                        return;
+                    }
+                }
+
+                if (operator && previousInput !== '' && !shouldResetDisplay) {
+                    const result = computeResult(previousInput, operator, currentInput);
+                    if (result !== null && typeof result === 'number') {
+                        const formatted = formatNumber(result);
+                        expressionString = previousInput + ' ' + operator + ' ' + currentInput + ' =';
+                        currentInput = formatted;
+                        previousInput = formatted;
+                        lastResult = formatted;
+                        expressionEl.textContent = expressionString;
+                        resultEl.textContent = formatted;
+                        shouldResetDisplay = true;
+                        justPressedEquals = true;
+                        // Keep operator for potential repeat
+                    } else if (result !== null && typeof result === 'string') {
+                        currentInput = result;
+                        expressionString = '';
+                        resultEl.textContent = result;
+                        resultEl.classList.add('error');
+                        expressionEl.textContent = '';
+                        previousInput = '';
+                        operator = null;
+                        shouldResetDisplay = true;
+                        lastResult = null;
+                        justPressedEquals = false;
+                    }
+                } else if (justPressedEquals && lastResult !== null) {
+                    // Pressing equals again with no new operator
+                    currentInput = lastResult;
+                    expressionString = lastResult + ' =';
+                    expressionEl.textContent = expressionString;
+                    resultEl.textContent = lastResult;
+                    shouldResetDisplay = true;
+                } else {
+                    // No operator set, just show the number
+                    expressionString = currentInput + ' =';
+                    expressionEl.textContent = expressionString;
+                    lastResult = currentInput;
+                    justPressedEquals = true;
+                    shouldResetDisplay = true;
+                }
+                updateDisplay();
+            }
+
+            function handleClear() {
+                clearAll();
+                // Add a subtle flash animation
+                resultEl.style.transition = 'none';
+                resultEl.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    resultEl.style.transition = 'all 0.2s ease';
+                    resultEl.style.transform = 'scale(1)';
+                }, 50);
+            }
+
+            function handleBackspace() {
+                if (justPressedEquals) {
+                    clearAll();
+                    justPressedEquals = false;
+                    return;
+                }
+                if (shouldResetDisplay) return;
+                if (currentInput.length === 1 || (currentInput.length === 2 && currentInput.startsWith('-'))) {
+                    currentInput = '0';
+                } else {
+                    currentInput = currentInput.slice(0, -1);
+                }
+                // Update expression
+                if (operator && previousInput !== '') {
+                    expressionString = previousInput + ' ' + operator + ' ' + currentInput;
+                } else {
+                    expressionString = currentInput;
+                }
+                updateDisplay();
+            }
+
+            function handleNegate() {
+                if (justPressedEquals) {
+                    // Negate the result
+                    if (currentInput.startsWith('-')) {
+                        currentInput = currentInput.slice(1);
+                    } else if (currentInput !== '0' && currentInput !== 'Error') {
+                        currentInput = '-' + currentInput;
+                    }
+                    expressionString = currentInput;
+                    previousInput = currentInput;
+                    lastResult = currentInput;
+                    updateDisplay();
+                    return;
+                }
+                if (shouldResetDisplay) {
+                    currentInput = '-0';
+                    shouldResetDisplay = false;
+                } else {
+                    if (currentInput.startsWith('-')) {
+                        currentInput = currentInput.slice(1);
+                    } else if (currentInput !== '0') {
+                        currentInput = '-' + currentInput;
+                    }
+                }
+                if (operator && previousInput !== '') {
+                    expressionString = previousInput + ' ' + operator + ' ' + currentInput;
+                } else {
+                    expressionString = currentInput;
+                }
+                updateDisplay();
+            }
+
+            // ---- Keyboard Support ----
+            function handleKeyboard(e) {
+                const key = e.key;
+                // Prevent default for calculator keys
+                if (/^[0-9.]$/.test(key) ||
+                    ['+', '-', '*', '/', '^', '%', 'Enter', '=', 'Escape', 'c', 'C', 'Backspace', 'Delete'].includes(
+                        key)) {
+                    e.preventDefault();
+                }
+
+                if (/^[0-9]$/.test(key)) {
+                    handleNumber(key);
+                } else if (key === '.') {
+                    handleDecimal();
+                } else if (['+', '-', '*', '/', '^', '%'].includes(key)) {
+                    handleOperator(key);
+                } else if (key === 'Enter' || key === '=') {
+                    handleEquals();
+                } else if (key === 'Escape' || key === 'c' || key === 'C' || key === 'Delete') {
+                    handleClear();
+                } else if (key === 'Backspace') {
+                    handleBackspace();
+                }
+            }
+
+            // ---- Button Click Bindings ----
+            function bindButtons() {
+                // Number buttons
+                for (let i = 0; i <= 9; i++) {
+                    const btn = document.getElementById('btn' + i);
+                    if (btn) {
+                        btn.addEventListener('click', () => handleNumber(i.toString()));
+                    }
+                }
+
+                // Decimal
+                document.getElementById('btnDecimal')?.addEventListener('click', handleDecimal);
+
+                // Operators
+                document.getElementById('btnAdd')?.addEventListener('click', () => handleOperator('+'));
+                document.getElementById('btnSubtract')?.addEventListener('click', () => handleOperator('-'));
+                document.getElementById('btnMultiply')?.addEventListener('click', () => handleOperator('*'));
+                document.getElementById('btnDivide')?.addEventListener('click', () => handleOperator('/'));
+                document.getElementById('btnPower')?.addEventListener('click', () => handleOperator('^'));
+                document.getElementById('btnModulo')?.addEventListener('click', () => handleOperator('%'));
+
+                // Equals
+                document.getElementById('btnEquals')?.addEventListener('click', handleEquals);
+
+                // Clear
+                document.getElementById('btnClear')?.addEventListener('click', handleClear);
+
+                // Double-click on Clear to also reset (extra feature)
+                document.getElementById('btnClear')?.addEventListener('dblclick', () => {
+                    clearAll();
+                    resultEl.textContent = '0';
+                    expressionEl.textContent = '';
+                });
+            }
+
+            // ---- Initialize ----
+            function init() {
+                bindButtons();
+                updateDisplay();
+
+                // Keyboard listener
+                document.addEventListener('keydown', handleKeyboard);
+
+                // Touch feedback enhancement for mobile
+                document.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('touchstart', function() {
+                        this.style.transform = 'scale(0.92)';
+                    }, { passive: true });
+                    btn.addEventListener('touchend', function() {
+                        this.style.transform = '';
+                    }, { passive: true });
+                    btn.addEventListener('touchcancel', function() {
+                        this.style.transform = '';
+                    }, { passive: true });
+                });
+
+                console.log('  Calculator Ready!');
+                console.log('   Supports: +  -  *  /  ^  %  C');
+                console.log('   Keyboard shortcuts enabled.');
+                console.log('   Click buttons or use keyboard to calculate.');
+            }
+
+            // Start the calculator
+            init();
+        })();
+    </script>
+</body>
+</html>
